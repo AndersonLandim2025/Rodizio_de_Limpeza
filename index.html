@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Rodízio Cíclico de Limpeza</title>
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Lucide Icons -->
+<script src="https://unpkg.com/lucide@latest"></script>
+
+<!-- jsPDF & AutoTable CDN -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  
+  body {
+    font-family: 'Inter', sans-serif;
+    background-color: #0f172a;
+    color: #f8fafc;
+  }
+
+  .fade-in {
+    animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #0f172a;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+  }
+</style>
+</head>
+<body class="min-h-screen flex flex-col justify-between antialiased">
+
+<div class="w-full">
+  <!-- Header Banner -->
+  <header class="bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 border-b border-blue-900/40 shadow-2xl">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="p-3 bg-blue-600/20 border border-blue-500/30 rounded-2xl text-blue-400 shadow-inner">
+            <i data-lucide="refresh-cw" class="w-8 h-8"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">Rodízio Cíclico de Limpeza</h1>
+              <span class="bg-blue-900/60 text-blue-300 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-blue-700/50">Quartas-feiras • A cada 28 dias</span>
+            </div>
+            <p class="text-slate-400 text-sm mt-0.5">Fluxo de rotação sequencial em 5 áreas residenciais (Grupos Q1–Q5)</p>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+          <button id="btnPdfGeralHeader" class="flex items-center gap-2 bg-blue-700 hover:bg-blue-600 text-white font-semibold text-sm px-4 py-2.5 rounded-xl shadow-lg shadow-blue-900/30 transition-all hover:scale-[1.02] active:scale-95">
+            <i data-lucide="file-text" class="w-4 h-4"></i>
+            <span>PDF Geral (5 Ciclos Completo)</span>
+          </button>
+          
+          <button id="btnShuffleGroups" class="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 font-semibold text-sm px-4 py-2.5 rounded-xl transition-all hover:scale-[1.02] active:scale-95">
+            <i data-lucide="shuffle" class="w-4 h-4 text-blue-400"></i>
+            <span>Reordenar Grupos</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex space-x-2 mt-8 border-b border-slate-800 pb-px overflow-x-auto">
+        <button data-tab="rodizio" class="nav-tab active flex items-center gap-2 px-5 py-3 rounded-t-xl text-sm font-semibold transition border-b-2 border-blue-500 bg-blue-950/40 text-blue-400">
+          <i data-lucide="calendar" class="w-4 h-4"></i>
+          <span>Rodízio Atual</span>
+        </button>
+        <button data-tab="moradores" class="nav-tab flex items-center gap-2 px-5 py-3 rounded-t-xl text-sm font-medium transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/40">
+          <i data-lucide="users" class="w-4 h-4"></i>
+          <span>Moradores e Grupos</span>
+        </button>
+        <button data-tab="historico" class="nav-tab flex items-center gap-2 px-5 py-3 rounded-t-xl text-sm font-medium transition text-slate-400 hover:text-slate-200 hover:bg-slate-800/40">
+          <i data-lucide="history" class="w-4 h-4"></i>
+          <span>Histórico de Ciclos</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    
+    <!-- SECTION 1: RODÍZIO ATUAL -->
+    <section id="panel-rodizio" class="panel-content fade-in space-y-6">
+      
+      <!-- Date & Cycle Selection Card -->
+      <div class="bg-white rounded-2xl p-5 shadow-xl border border-slate-200 text-slate-900 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
+        <div class="flex items-center gap-3">
+          <div class="p-3 bg-blue-50 text-blue-900 rounded-xl">
+            <i data-lucide="calendar" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold uppercase tracking-wider text-blue-800">Data da Limpeza</span>
+              <span id="cycleBadge" class="bg-blue-100 text-blue-900 text-xs font-extrabold px-2 py-0.5 rounded-full border border-blue-300">Ciclo 1</span>
+            </div>
+            <div id="weekLabel" class="text-xl font-extrabold text-slate-900">Carregando...</div>
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+            <label for="cycleDatePicker" class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+              <i data-lucide="calendar-days" class="w-4 h-4 text-blue-700"></i>
+              <span>Quarta-feira da Limpeza:</span>
+            </label>
+            <input type="date" id="cycleDatePicker" class="px-3 py-1.5 bg-white border border-slate-300 text-slate-900 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600">
+          </div>
+
+          <div class="flex items-center gap-1.5 border-l border-slate-300 pl-3">
+            <button id="prevWeek" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold text-xs transition">
+              <i data-lucide="chevron-left" class="w-4 h-4"></i>
+              <span class="hidden sm:inline">-28 Dias</span>
+            </button>
+
+            <button id="todayWeek" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-900 hover:bg-blue-800 text-white font-semibold text-xs transition border border-blue-800">
+              <span>Hoje / Quarta</span>
+            </button>
+
+            <button id="nextWeek" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold text-xs transition">
+              <span class="hidden sm:inline">+28 Dias</span>
+              <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trail Visualizer -->
+      <div class="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-lg text-slate-200 space-y-2">
+        <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-blue-400">
+          <i data-lucide="arrow-right-left" class="w-4 h-4"></i>
+          <span>Trilha Sequencial Fixa de Rotação Cíclica</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-2 text-xs sm:text-sm font-medium">
+          <span class="bg-blue-950 text-blue-300 px-3 py-1 rounded-lg border border-blue-800/60 font-semibold">Área 1 (Lavanderias)</span>
+          <i data-lucide="arrow-right" class="w-4 h-4 text-slate-500"></i>
+          <span class="bg-blue-950 text-blue-300 px-3 py-1 rounded-lg border border-blue-800/60 font-semibold">Área 2 (Sala Estudo/Convívio)</span>
+          <i data-lucide="arrow-right" class="w-4 h-4 text-slate-500"></i>
+          <span class="bg-blue-950 text-blue-300 px-3 py-1 rounded-lg border border-blue-800/60 font-semibold">Área 4 (Cozinha Pequena)</span>
+          <i data-lucide="arrow-right" class="w-4 h-4 text-slate-500"></i>
+          <span class="bg-blue-950 text-blue-300 px-3 py-1 rounded-lg border border-blue-800/60 font-semibold">Área 5 (Cozinha Cimento)</span>
+          <i data-lucide="arrow-right" class="w-4 h-4 text-slate-500"></i>
+          <span class="bg-blue-950 text-blue-300 px-3 py-1 rounded-lg border border-blue-800/60 font-semibold">Área 3 (Informática/Térreo)</span>
+        </div>
+      </div>
+
+      <!-- Export PDF Actions Bar -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-slate-800/80 backdrop-blur-md p-4 rounded-2xl border border-slate-700/60 shadow-lg">
+        <div class="flex items-center gap-2 text-slate-300 text-sm font-medium">
+          <i data-lucide="download" class="w-4 h-4 text-blue-400"></i>
+          <span>Relatórios em PDF disponíveis:</span>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="pdfCurrent" class="flex items-center gap-2 bg-blue-900 hover:bg-blue-800 text-blue-100 font-semibold text-xs sm:text-sm px-4 py-2 rounded-xl border border-blue-700/50 transition shadow">
+            <i data-lucide="file-check" class="w-4 h-4 text-blue-400"></i>
+            <span>Exportar Ciclo Atual</span>
+          </button>
+          
+          <button id="pdfAll" class="flex items-center gap-2 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-600 hover:to-indigo-600 text-white font-semibold text-xs sm:text-sm px-4 py-2 rounded-xl transition shadow-md shadow-blue-950">
+            <i data-lucide="files" class="w-4 h-4"></i>
+            <span>Exportar Relatório Geral (5 Ciclos Completos)</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Real-time Stats Grid -->
+      <div id="stats" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+
+      <!-- Areas Grid -->
+      <div id="areas" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+    </section>
+
+    <!-- SECTION 2: MORADORES E GRUPOS -->
+    <section id="panel-moradores" class="panel-content hidden fade-in space-y-6">
+      <div class="bg-white rounded-2xl p-6 shadow-xl border border-slate-200 text-slate-900 space-y-6">
+        <div>
+          <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <i data-lucide="users" class="w-5 h-5 text-blue-800"></i>
+            Gerenciamento de Moradores e Grupos (Q1 a Q5)
+          </h2>
+          <p class="text-slate-500 text-sm mt-1">
+            Cadastre os moradores pelos seus nomes reais em cada grupo ou edite os existentes.
+          </p>
+        </div>
+
+        <!-- Add Resident Form -->
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+            <div class="md:col-span-6">
+              <label for="nameInput" class="block text-xs font-bold text-slate-700 uppercase mb-1">Nome(s) do(s) Morador(es)</label>
+              <input id="nameInput" type="text" placeholder="Ex: João Silva (ou separe vários por vírgula: João, Maria, Pedro)"
+                     class="w-full px-4 py-2.5 bg-white border border-slate-300 text-slate-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm font-semibold">
+            </div>
+
+            <div class="md:col-span-3">
+              <label for="groupSelect" class="block text-xs font-bold text-slate-700 uppercase mb-1">Grupo de Trabalho</label>
+              <select id="groupSelect" class="w-full px-3 py-2.5 bg-white border border-slate-300 text-slate-900 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600">
+                <option value="Q1">Grupo Q1</option>
+                <option value="Q2">Grupo Q2</option>
+                <option value="Q3">Grupo Q3</option>
+                <option value="Q4">Grupo Q4</option>
+                <option value="Q5">Grupo Q5</option>
+              </select>
+            </div>
+
+            <div class="md:col-span-3">
+              <button id="addPersonBtn" class="w-full flex items-center justify-center gap-2 bg-blue-900 hover:bg-blue-800 text-white font-semibold px-4 py-2.5 rounded-xl transition shadow-md text-sm">
+                <i data-lucide="user-plus" class="w-4 h-4"></i>
+                <span>Adicionar Morador</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-slate-200 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
+            <span>Dica: Separe vários nomes por vírgula para cadastrar simultaneamente.</span>
+            <button id="toggleQuickGen" class="text-blue-700 hover:underline font-semibold flex items-center gap-1">
+              <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
+              <span>Gerar moradores genéricos</span>
+            </button>
+          </div>
+
+          <div id="quickGenBox" class="hidden p-3 bg-white rounded-lg border border-slate-200 flex items-center gap-3">
+            <span class="text-xs font-bold text-slate-700 uppercase">Qtd:</span>
+            <input id="quantityInput" type="number" min="1" max="50" value="1" class="w-20 px-2 py-1 border border-slate-300 rounded text-sm text-slate-900 font-semibold">
+            <button id="addBatchBtn" class="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold rounded-lg">Gerar Nomes Genéricos</button>
+          </div>
+        </div>
+
+        <!-- People List -->
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Moradores Cadastrados (<span id="peopleCount">0</span>)</h3>
+            <button id="clearPeopleBtn" class="text-xs text-red-600 hover:text-red-800 font-bold">Limpar Moradores</button>
+          </div>
+          <div id="peopleList" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: HISTÓRICO -->
+    <section id="panel-historico" class="panel-content hidden fade-in space-y-6">
+      <div class="bg-white rounded-2xl p-6 shadow-xl border border-slate-200 text-slate-900 space-y-6">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
+          <div>
+            <h2 class="text-xl font-bold text-slate-900 flex items-center gap-2">
+              <i data-lucide="history" class="w-5 h-5 text-blue-800"></i>
+              Histórico de Ciclos do Rodízio
+            </h2>
+            <p class="text-slate-500 text-sm mt-1">Acompanhamento dos ciclos e datas cadastradas dos grupos Q1 a Q5.</p>
+          </div>
+          <button id="clearHistory" class="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-700 font-semibold px-4 py-2 rounded-xl text-xs sm:text-sm border border-red-200 transition">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+            <span>Limpar Histórico</span>
+          </button>
+        </div>
+
+        <div id="history" class="space-y-4"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Edit Name Modal -->
+<div id="editModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 text-slate-900 space-y-4">
+    <div class="flex items-center gap-3 text-blue-900">
+      <div class="p-3 bg-blue-50 rounded-xl">
+        <i data-lucide="pencil" class="w-6 h-6"></i>
+      </div>
+      <h3 class="text-lg font-bold text-slate-900">Editar Nome do Morador</h3>
+    </div>
+    <div>
+      <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Nome Completo / Identificação</label>
+      <input type="text" id="editPersonNameInput" class="w-full px-4 py-2.5 bg-slate-50 border border-slate-300 text-slate-900 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600 text-sm font-semibold">
+    </div>
+    <div class="flex items-center justify-end gap-3 pt-2">
+      <button id="editModalCancel" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition">
+        Cancelar
+      </button>
+      <button id="editModalSave" class="px-4 py-2.5 rounded-xl bg-blue-900 hover:bg-blue-800 text-white font-semibold text-sm transition shadow-md">
+        Salvar Nome
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirmModal" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 text-slate-900 space-y-4">
+    <div class="flex items-center gap-3 text-amber-600">
+      <div class="p-3 bg-amber-50 rounded-xl">
+        <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+      </div>
+      <h3 id="modalTitle" class="text-lg font-bold text-slate-900">Confirmação</h3>
+    </div>
+    <p id="modalMessage" class="text-slate-600 text-sm leading-relaxed"></p>
+    <div class="flex items-center justify-end gap-3 pt-2">
+      <button id="modalCancel" class="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-sm transition">
+        Cancelar
+      </button>
+      <button id="modalConfirm" class="px-4 py-2.5 rounded-xl bg-blue-900 hover:bg-blue-800 text-white font-semibold text-sm transition shadow-md">
+        Confirmar
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Notification -->
+<div id="toast" class="fixed bottom-5 right-5 z-50 hidden transform transition-all duration-300 translate-y-2 opacity-0">
+  <div id="toastContent" class="bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 border border-slate-700 font-medium text-sm">
+    <i data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
+    <span id="toastText">Ação realizada com sucesso!</span>
+  </div>
+</div>
+
+<!-- Footer -->
+<footer class="py-6 text-center text-xs text-slate-500 border-t border-slate-800/80 mt-12">
+  <div class="max-w-7xl mx-auto px-4">
+    <p>Sistema de Rodízio Cíclico de Limpeza Residencial • Rotação Sequencial de Grupos Q1–Q5</p>
+  </div>
+</footer>
+
+<script>
+/* Sequential Trail Order according to Rules */
+const TRAIL_AREAS = [
+  { id: "A1", code: "Área 1", num: 1, name: "Lavanderias", desc: "Lavagem e organização das lavanderias" },
+  { id: "A2", code: "Área 2", num: 2, name: "Sala de estudo e áreas de convívio", desc: "Sala de estudo e 2 áreas de convívio do andar superior" },
+  { id: "A4", code: "Área 4", num: 4, name: "Parte da cozinha pequena", desc: "Balcões, pia e piso da cozinha pequena" },
+  { id: "A5", code: "Área 5", num: 5, name: "Parte da cozinha de cimento", desc: "Área de apoio e cozinha de cimento" },
+  { id: "A3", code: "Área 3", num: 3, name: "Informática, escada e térreo", desc: "Sala de informática, escadaria e área de convívio do térreo" }
+];
+
+/* Numeric order sorting for table display */
+const DISPLAY_AREAS = [...TRAIL_AREAS].sort((a, b) => a.num - b.num);
+
+const GROUPS = ["Q1", "Q2", "Q3", "Q4", "Q5"];
+const LOCAL_STORAGE_KEY = "rodizio_limpeza_ciclico_v4";
+
+const DEFAULT_PEOPLE = [
+  { id: "p1", name: "Morador 01", group: "Q1" },
+  { id: "p2", name: "Morador 02", group: "Q1" },
+  { id: "p3", name: "Morador 03", group: "Q2" },
+  { id: "p4", name: "Morador 04", group: "Q2" },
+  { id: "p5", name: "Morador 05", group: "Q3" },
+  { id: "p6", name: "Morador 06", group: "Q4" },
+  { id: "p7", name: "Morador 07", group: "Q5" }
+];
+
+/* Pure Date Helpers (YYYY-MM-DD / DD/MM/YYYY) without hours */
+function parseLocalDate(dateInput) {
+  if (typeof dateInput === 'string') {
+    const [y, m, d] = dateInput.split('-').map(Number);
+    return new Date(y, m - 1, d);
+  }
+  return new Date(dateInput.getFullYear(), dateInput.getMonth(), dateInput.getDate());
+}
+
+function formatDateToISO(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function weekStart(dateInput) {
+  let d = parseLocalDate(dateInput);
+  let day = d.getDay();
+  let diff = 3 - day; // 3 = Quarta-feira
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+function weekId(dateInput) {
+  return formatDateToISO(weekStart(dateInput));
+}
+
+function weekLabel(id) {
+  const [y, m, d] = id.split('-').map(Number);
+  const date = new Date(y, m - 1, d);
+  return "Quarta-feira, " + date.toLocaleDateString("pt-BR");
+}
+
+function escapeHtml(s) {
+  return (s || "").replace(/[&<>"']/g, m => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" }[m]));
+}
+
+function shuffle(array) {
+  let a = [...array];
+  for (let i = a.length - 1; i > 0; i--) {
+    let j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function prevId(id) {
+  let d = parseLocalDate(id);
+  d.setDate(d.getDate() - 28);
+  return weekId(d);
+}
+
+function nextId(id) {
+  let d = parseLocalDate(id);
+  d.setDate(d.getDate() + 28);
+  return weekId(d);
+}
+
+function getWeekOffset(targetId) {
+  const baseDate = new Date(2024, 0, 3);
+  const targetDate = parseLocalDate(targetId);
+  const diffTime = targetDate.getTime() - baseDate.getTime();
+  const diffDays = Math.round(diffTime / (1000 * 3600 * 24));
+  return Math.round(diffDays / 28);
+}
+
+let data = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || "null") || {
+  people: DEFAULT_PEOPLE,
+  weeks: {},
+  current: weekId(new Date())
+};
+
+// Sempre carrega a data atual em tempo real no momento do acesso
+data.current = weekId(new Date());
+
+let editingPersonId = null;
+
+function save() {
+  localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(data));
+}
+
+function generateWeek(id, force = false) {
+  if (data.weeks[id] && !force) return;
+  if (!data.people.length) return;
+
+  const offset = getWeekOffset(id);
+  const cycleStep = ((offset % 5) + 5) % 5;
+  const cycleNumber = cycleStep + 1;
+
+  const groupResidents = { Q1: [], Q2: [], Q3: [], Q4: [], Q5: [] };
+  data.people.forEach((p, idx) => {
+    const groupName = p.group || GROUPS[idx % 5];
+    if (groupResidents[groupName]) {
+      groupResidents[groupName].push(p.id);
+    }
+  });
+
+  const assignments = {};
+  const groupAssignments = {};
+  TRAIL_AREAS.forEach(area => { assignments[area.id] = []; });
+
+  GROUPS.forEach((groupName, gIdx) => {
+    const areaTrailIndex = (gIdx + cycleStep) % 5;
+    const targetArea = TRAIL_AREAS[areaTrailIndex];
+    
+    assignments[targetArea.id] = [...groupResidents[groupName]];
+    groupAssignments[targetArea.id] = groupName;
+  });
+
+  data.weeks[id] = {
+    assignments,
+    groupAssignments,
+    cycleNumber,
+    done: data.weeks[id]?.done || {},
+    cleaningDate: id
+  };
+
+  save();
+  render();
+}
+
+function render() {
+  document.getElementById("weekLabel").textContent = weekLabel(data.current);
+  
+  const datePicker = document.getElementById("cycleDatePicker");
+  if (datePicker) {
+    datePicker.value = data.current;
+  }
+
+  const w = data.weeks[data.current];
+  const cycleBadge = document.getElementById("cycleBadge");
+  if (w && cycleBadge) {
+    cycleBadge.textContent = `Ciclo ${w.cycleNumber || 1}`;
+  }
+
+  renderStats();
+  renderAreas();
+  renderPeople();
+  renderHistory();
+  if (window.lucide) {
+    lucide.createIcons();
+  }
+}
+
+function renderStats() {
+  const w = data.weeks[data.current];
+  const total = data.people.length;
+  let done = 0;
+
+  if (w) {
+    Object.values(w.assignments).flat().forEach(id => {
+      if (w.done && w.done[id]) done++;
+    });
+  }
+
+  const pct = total ? Math.round((done / total) * 100) : 0;
+
+  document.getElementById("stats").innerHTML = `
+    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-slate-900">
+      <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Moradores</span>
+      <div class="text-2xl font-extrabold text-blue-950 mt-1">${total}</div>
+    </div>
+    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-slate-900">
+      <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Áreas de Limpeza</span>
+      <div class="text-2xl font-extrabold text-blue-950 mt-1">${TRAIL_AREAS.length}</div>
+    </div>
+    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-slate-900">
+      <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Tarefas Concluídas</span>
+      <div class="text-2xl font-extrabold text-emerald-600 mt-1">${done} / ${total}</div>
+    </div>
+    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm text-slate-900">
+      <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Progresso</span>
+      <div class="text-2xl font-extrabold text-blue-600 mt-1">${pct}%</div>
+    </div>
+  `;
+}
+
+function renderAreas() {
+  const w = data.weeks[data.current];
+  const container = document.getElementById("areas");
+
+  if (!w) {
+    container.innerHTML = `<div class="col-span-full p-8 text-center text-slate-400 bg-slate-900/50 rounded-2xl border border-slate-800">Nenhum rodízio para esta data.</div>`;
+    return;
+  }
+
+  container.innerHTML = DISPLAY_AREAS.map(area => {
+    const assignedIds = w.assignments[area.id] || [];
+    const groupName = w.groupAssignments ? w.groupAssignments[area.id] : "Q";
+
+    const membersHtml = assignedIds.length ? assignedIds.map(pid => {
+      const person = data.people.find(p => p.id === pid);
+      if (!person) return "";
+      const isDone = w.done && w.done[pid];
+
+      return `
+        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-200 transition">
+          <div class="flex items-center gap-2.5">
+            <div class="w-8 h-8 rounded-full ${isDone ? 'bg-emerald-100 text-emerald-800' : 'bg-blue-100 text-blue-900'} font-bold text-xs flex items-center justify-center">
+              ${escapeHtml(person.name).charAt(0).toUpperCase()}
+            </div>
+            <span class="font-semibold text-slate-800 text-sm">${escapeHtml(person.name)}</span>
+          </div>
+          <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-semibold select-none ${isDone ? 'text-emerald-700' : 'text-slate-500'}">
+            <input type="checkbox" data-done="${pid}" ${isDone ? "checked" : ""}
+                   class="w-4 h-4 rounded border-slate-300 text-blue-800 focus:ring-blue-600 cursor-pointer">
+            <span>${isDone ? "Concluída" : "Pendente"}</span>
+          </label>
+        </div>
+      `;
+    }).join("") : `<div class="text-xs text-slate-400 italic p-3 text-center">Nenhum morador alocado</div>`;
+
+    return `
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden text-slate-900 flex flex-col justify-between">
+        <div>
+          <div class="bg-slate-900 text-white p-4 border-b border-slate-800">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-extrabold uppercase tracking-widest text-blue-400 bg-blue-950/80 px-2.5 py-1 rounded-md border border-blue-800/50">${area.code}</span>
+              <span class="text-xs font-bold text-emerald-400 bg-emerald-950/80 px-2.5 py-1 rounded-md border border-emerald-800/50">Grupo ${groupName}</span>
+            </div>
+            <h3 class="text-base font-bold mt-2 text-white">${escapeHtml(area.name)}</h3>
+            <p class="text-xs text-slate-400 mt-0.5 leading-snug">${escapeHtml(area.desc)}</p>
+          </div>
+          <div class="p-4 space-y-2.5">
+            ${membersHtml}
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  container.querySelectorAll("[data-done]").forEach(chk => {
+    chk.addEventListener("change", (e) => {
+      const pid = e.target.dataset.done;
+      if (!w.done) w.done = {};
+      w.done[pid] = e.target.checked;
+      save();
+      renderStats();
+      renderHistory();
+      showToast(e.target.checked ? "Tarefa marcada como concluída!" : "Status atualizado para pendente.");
+    });
+  });
+}
+
+function renderPeople() {
+  const el = document.getElementById("peopleList");
+  const countEl = document.getElementById("peopleCount");
+  if (countEl) countEl.textContent = data.people.length;
+
+  if (!data.people.length) {
+    el.innerHTML = '<div class="col-span-full p-8 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-300">Nenhum morador cadastrado.</div>';
+    return;
+  }
+
+  el.innerHTML = data.people.map((p, idx) => {
+    const groupName = p.group || GROUPS[idx % 5];
+    return `
+      <div class="flex items-center justify-between p-3.5 bg-slate-50 border border-slate-200 rounded-xl hover:border-blue-300 transition group">
+        <div class="flex items-center gap-3 overflow-hidden">
+          <div class="w-8 h-8 shrink-0 rounded-full bg-blue-900 text-white flex items-center justify-center font-bold text-xs">
+            ${escapeHtml(p.name).charAt(0).toUpperCase()}
+          </div>
+          <div class="truncate">
+            <span class="font-semibold text-slate-800 text-sm block truncate">${escapeHtml(p.name)}</span>
+            <span class="text-[10px] font-extrabold text-blue-700 uppercase">Grupo ${groupName}</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-1 shrink-0">
+          <button data-edit="${p.id}" class="btn-edit p-2 text-slate-400 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition" title="Editar nome">
+            <i data-lucide="pencil" class="w-4 h-4"></i>
+          </button>
+          <button data-remove="${p.id}" class="btn-remove p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition" title="Remover morador">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join("");
+
+  el.querySelectorAll(".btn-remove").forEach(btn => {
+    btn.onclick = async () => {
+      const confirmed = await showConfirmModal("Remover Morador", "Deseja realmente remover este morador?");
+      if (confirmed) {
+        data.people = data.people.filter(p => p.id !== btn.dataset.remove);
+        save();
+        generateWeek(data.current, true);
+        render();
+        showToast("Morador removido com sucesso.");
+      }
+    };
+  });
+
+  el.querySelectorAll(".btn-edit").forEach(btn => {
+    btn.onclick = () => {
+      const pid = btn.dataset.edit;
+      const person = data.people.find(p => p.id === pid);
+      if (person) openEditModal(person);
+    };
+  });
+}
+
+function renderHistory() {
+  const el = document.getElementById("history");
+  const sortedIds = Object.keys(data.weeks).sort((a, b) => {
+    const cycleA = data.weeks[a]?.cycleNumber || 0;
+    const cycleB = data.weeks[b]?.cycleNumber || 0;
+    if (cycleA !== cycleB) return cycleA - cycleB;
+    return a.localeCompare(b);
+  });
+
+  if (!sortedIds.length) {
+    el.innerHTML = '<div class="p-8 text-center text-slate-400 bg-slate-50 rounded-xl border border-dashed border-slate-300">Nenhum registro no histórico.</div>';
+    return;
+  }
+
+  el.innerHTML = sortedIds.map(id => {
+    const w = data.weeks[id];
+    const assignedIds = Object.values(w.assignments).flat();
+    const total = assignedIds.length;
+    const doneCount = assignedIds.filter(pid => w.done && w.done[pid]).length;
+
+    const areaSummary = DISPLAY_AREAS.map(a => {
+      const groupName = w.groupAssignments ? w.groupAssignments[a.id] : "";
+      const names = (w.assignments[a.id] || [])
+        .map(pid => data.people.find(p => p.id === pid)?.name)
+        .filter(Boolean)
+        .join(", ");
+
+      return `<span class="inline-block bg-slate-100 text-slate-700 text-xs px-2.5 py-1 rounded-md border border-slate-200">
+        <strong class="text-blue-900 font-bold">${a.code} [Grupo ${groupName}]:</strong> ${escapeHtml(names || "Sem responsável")}
+      </span>`;
+    }).join(" ");
+
+    return `
+      <div class="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200 pb-3">
+          <div class="flex items-center gap-2">
+            <i data-lucide="calendar" class="w-4 h-4 text-blue-800"></i>
+            <strong class="text-slate-900 font-bold text-sm sm:text-base">${weekLabel(id)}</strong>
+            <span class="bg-blue-100 text-blue-900 text-xs font-bold px-2 py-0.5 rounded-full border border-blue-200">Ciclo ${w.cycleNumber || 1}</span>
+          </div>
+          <div class="text-xs font-semibold text-slate-500">
+            Status: <span class="text-emerald-700 font-bold">${doneCount}/${total} Concluídas</span>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2">
+          ${areaSummary}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+/* Modals & Helpers */
+function showToast(msg) {
+  const toast = document.getElementById("toast");
+  const text = document.getElementById("toastText");
+  if (!toast || !text) return;
+  text.textContent = msg;
+  toast.classList.remove("hidden");
+  setTimeout(() => {
+    toast.classList.remove("translate-y-2", "opacity-0");
+  }, 10);
+
+  setTimeout(() => {
+    toast.classList.add("translate-y-2", "opacity-0");
+    setTimeout(() => toast.classList.add("hidden"), 300);
+  }, 3000);
+}
+
+function showConfirmModal(title, message) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById("confirmModal");
+    const modalTitle = document.getElementById("modalTitle");
+    const modalMessage = document.getElementById("modalMessage");
+    const btnConfirm = document.getElementById("modalConfirm");
+    const btnCancel = document.getElementById("modalCancel");
+
+    modalTitle.textContent = title;
+    modalMessage.textContent = message;
+    modal.classList.remove("hidden");
+
+    const cleanUp = () => {
+      modal.classList.add("hidden");
+      btnConfirm.removeEventListener("click", onConfirm);
+      btnCancel.removeEventListener("click", onCancel);
+    };
+
+    const onConfirm = () => { cleanUp(); resolve(true); };
+    const onCancel = () => { cleanUp(); resolve(false); };
+
+    btnConfirm.addEventListener("click", onConfirm);
+    btnCancel.addEventListener("click", onCancel);
+  });
+}
+
+function openEditModal(person) {
+  editingPersonId = person.id;
+  const modal = document.getElementById("editModal");
+  const input = document.getElementById("editPersonNameInput");
+  input.value = person.name;
+  modal.classList.remove("hidden");
+}
+
+function closeEditModal() {
+  const modal = document.getElementById("editModal");
+  modal.classList.add("hidden");
+  editingPersonId = null;
+}
+
+/* PDF Generation Functions */
+/* =========================================================
+   PDF - CORREÇÃO DA EXIBIÇÃO DOS NOMES DOS MORADORES
+   ========================================================= */
+
+/* Busca o morador sempre na lista atual cadastrada. */
+function getResidentById(pid) {
+  if (!pid) return null;
+  return data.people.find(person => String(person.id) === String(pid)) || null;
+}
+
+/* Converte uma lista de IDs em nomes, evitando células vazias. */
+function getResidentNames(ids, doneMap = {}) {
+  if (!Array.isArray(ids)) return "Sem moradores";
+
+  const names = ids
+    .map(pid => {
+      const person = getResidentById(pid);
+      if (!person || !person.name) return null;
+
+      const status = doneMap && doneMap[pid] ? " (Concluído)" : "";
+      return `${person.name}${status}`;
+    })
+    .filter(Boolean);
+
+  return names.length ? names.join(", ") : "Sem moradores";
+}
+
+/*
+ * Antes de exportar, garante que o ciclo usa os moradores atualmente
+ * cadastrados. Isso evita que um PDF antigo mantenha IDs de uma escala
+ * anterior ou de moradores que já foram alterados.
+ */
+function rebuildWeekForPDF(id) {
+  generateWeek(id, true);
+  return data.weeks[id];
+}
+
+function generatePDFCurrent() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    showToast("Erro: biblioteca jsPDF não carregada.");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  /* Recria a escala usando os moradores atualmente cadastrados. */
+  const w = rebuildWeekForPDF(data.current);
+
+  if (!w) {
+    showToast("Não há moradores cadastrados para gerar o PDF.");
+    return;
+  }
+
+  doc.setFontSize(16);
+  doc.setTextColor(15, 23, 42);
+  doc.text("Relatório de Rodízio de Limpeza", 14, 18);
+
+  doc.setFontSize(11);
+  doc.setTextColor(71, 85, 105);
+  doc.text(
+    `Ciclo ${w.cycleNumber || 1}`,
+    14,
+    25
+  );
+
+  const rows = DISPLAY_AREAS.map(area => {
+    const groupName = w.groupAssignments?.[area.id] || "-";
+    const assignedIds = Array.isArray(w.assignments?.[area.id])
+      ? w.assignments[area.id]
+      : [];
+
+    const pnames = getResidentNames(assignedIds, w.done);
+
+    return [
+      area.code,
+      area.name,
+      `Grupo ${groupName}`,
+      pnames
+    ];
+  });
+
+  doc.autoTable({
+    startY: 32,
+    head: [["Código", "Área de Limpeza", "Grupo", "Moradores Alocados"]],
+    body: rows,
+    theme: "striped",
+    styles: {
+      fontSize: 9,
+      cellPadding: 3,
+      overflow: "linebreak",
+      valign: "middle"
+    },
+    columnStyles: {
+      0: { cellWidth: 22 },
+      1: { cellWidth: 50 },
+      2: { cellWidth: 28 },
+      3: { cellWidth: "auto" }
+    },
+    headStyles: {
+      fillColor: [15, 23, 42],
+      textColor: 255
+    }
+  });
+
+  doc.save(`rodizio_${data.current}.pdf`);
+  showToast("PDF do Ciclo Atual gerado com os nomes dos moradores!");
+}
+
+function generatePDFAll() {
+  if (!window.jspdf || !window.jspdf.jsPDF) {
+    showToast("Erro: biblioteca jsPDF não carregada.");
+    return;
+  }
+
+  if (!data.people.length) {
+    showToast("Cadastre pelo menos um morador antes de gerar o PDF.");
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  /*
+   * Descobre o início do ciclo atual e gera novamente cada uma das
+   * 5 semanas com os moradores atualmente cadastrados.
+   */
+  const currentWeek = rebuildWeekForPDF(data.current);
+  const currentCycleNum = currentWeek?.cycleNumber || 1;
+
+  let currentId = data.current;
+
+  for (let s = 0; s < currentCycleNum - 1; s++) {
+    currentId = prevId(currentId);
+  }
+
+  doc.setFontSize(16);
+  doc.setTextColor(15, 23, 42);
+  doc.text("Cronograma Geral de Rodízio (5 Ciclos Completos)", 14, 18);
+
+  doc.setFontSize(10);
+  doc.setTextColor(71, 85, 105);
+  doc.text(
+    "Escala completa de rotação sequencial em 5 áreas de limpeza",
+    14,
+    24
+  );
+
+  let currentY = 32;
+
+  for (let i = 0; i < 5; i++) {
+    /* IMPORTANTE: força a reconstrução com data.people atual. */
+    const w = rebuildWeekForPDF(currentId);
+
+    if (!w) {
+      currentId = nextId(currentId);
+      continue;
+    }
+
+    const rows = DISPLAY_AREAS.map(area => {
+      const groupName = w.groupAssignments?.[area.id] || "-";
+      const assignedIds = Array.isArray(w.assignments?.[area.id])
+        ? w.assignments[area.id]
+        : [];
+
+      const pnames = getResidentNames(assignedIds, w.done);
+
+      return [
+        area.code,
+        area.name,
+        `Grupo ${groupName}`,
+        pnames
+      ];
+    });
+
+    doc.setFontSize(11);
+    doc.setTextColor(30, 58, 138);
+    doc.text(
+      `Ciclo ${w.cycleNumber || (i + 1)}`,
+      14,
+      currentY
+    );
+
+    doc.autoTable({
+      startY: currentY + 4,
+      head: [["Código", "Área de Limpeza", "Grupo", "Moradores Alocados"]],
+      body: rows,
+      theme: "grid",
+      styles: {
+        fontSize: 8.5,
+        cellPadding: 3,
+        overflow: "linebreak",
+        valign: "middle"
+      },
+      columnStyles: {
+        0: { cellWidth: 20 },
+        1: { cellWidth: 48 },
+        2: { cellWidth: 27 },
+        3: { cellWidth: "auto" }
+      },
+      headStyles: {
+        fillColor: [30, 58, 138],
+        textColor: 255
+      }
+    });
+
+    currentY = doc.lastAutoTable.finalY + 12;
+
+    if (currentY > 230 && i < 4) {
+      doc.addPage();
+      currentY = 20;
+    }
+
+    currentId = nextId(currentId);
+  }
+
+  doc.save("rodizio_geral_5_ciclos.pdf");
+  showToast("PDF Geral de 5 Ciclos gerado com os nomes dos moradores!");
+}
+
+/* Application Event Handlers */
+document.addEventListener("DOMContentLoaded", () => {
+  // Tab Navigation
+  const tabs = document.querySelectorAll(".nav-tab");
+  const panels = document.querySelectorAll(".panel-content");
+
+  tabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      const target = tab.dataset.tab;
+
+      tabs.forEach(t => {
+        t.classList.remove("active", "border-b-2", "border-blue-500", "bg-blue-950/40", "text-blue-400");
+        t.classList.add("text-slate-400", "hover:text-slate-200", "hover:bg-slate-800/40");
+      });
+
+      tab.classList.add("active", "border-b-2", "border-blue-500", "bg-blue-950/40", "text-blue-400");
+      tab.classList.remove("text-slate-400", "hover:text-slate-200", "hover:bg-slate-800/40");
+
+      panels.forEach(panel => {
+        if (panel.id === `panel-${target}`) {
+          panel.classList.remove("hidden");
+        } else {
+          panel.classList.add("hidden");
+        }
+      });
+    });
+  });
+
+  // Date controls
+  document.getElementById("prevWeek")?.addEventListener("click", () => {
+    data.current = prevId(data.current);
+    generateWeek(data.current);
+    render();
+  });
+
+  document.getElementById("nextWeek")?.addEventListener("click", () => {
+    data.current = nextId(data.current);
+    generateWeek(data.current);
+    render();
+  });
+
+  document.getElementById("todayWeek")?.addEventListener("click", () => {
+    data.current = weekId(new Date());
+    generateWeek(data.current);
+    render();
+  });
+
+  document.getElementById("cycleDatePicker")?.addEventListener("change", (e) => {
+    if (e.target.value) {
+      data.current = weekId(e.target.value);
+      generateWeek(data.current);
+      render();
+    }
+  });
+
+  // Add Resident
+  document.getElementById("addPersonBtn")?.addEventListener("click", () => {
+    const input = document.getElementById("nameInput");
+    const groupSelect = document.getElementById("groupSelect");
+    const val = input.value.trim();
+    if (!val) return;
+
+    const names = val.split(",").map(n => n.trim()).filter(Boolean);
+    names.forEach(name => {
+      data.people.push({
+        id: "p_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
+        name: name,
+        group: groupSelect.value
+      });
+    });
+
+    input.value = "";
+    save();
+    generateWeek(data.current, true);
+    render();
+    showToast(`${names.length} morador(es) adicionado(s)!`);
+  });
+
+  // Quick Generator Toggle
+  document.getElementById("toggleQuickGen")?.addEventListener("click", () => {
+    document.getElementById("quickGenBox")?.classList.toggle("hidden");
+  });
+
+  // Add Batch Generic
+  document.getElementById("addBatchBtn")?.addEventListener("click", () => {
+    const qtyInput = document.getElementById("quantityInput");
+    const qty = parseInt(qtyInput.value) || 1;
+    const startNum = data.people.length + 1;
+
+    for (let i = 0; i < qty; i++) {
+      const num = (startNum + i).toString().padStart(2, "0");
+      const gIndex = data.people.length % 5;
+      data.people.push({
+        id: "p_" + Date.now() + "_" + Math.random().toString(36).substr(2, 4),
+        name: `Morador ${num}`,
+        group: GROUPS[gIndex]
+      });
+    }
+
+    save();
+    generateWeek(data.current, true);
+    render();
+    showToast(`${qty} morador(es) genérico(s) criado(s)!`);
+  });
+
+  // Clear Residents
+  document.getElementById("clearPeopleBtn")?.addEventListener("click", async () => {
+    const confirmed = await showConfirmModal("Limpar Moradores", "Tem certeza que deseja apagar TODOS os moradores cadastrados?");
+    if (confirmed) {
+      data.people = [];
+      save();
+      generateWeek(data.current, true);
+      render();
+      showToast("Lista de moradores limpa.");
+    }
+  });
+
+  // Clear History
+  document.getElementById("clearHistory")?.addEventListener("click", async () => {
+    const confirmed = await showConfirmModal("Limpar Histórico", "Deseja apagar o histórico de rodízios gravado?");
+    if (confirmed) {
+      data.weeks = {};
+      save();
+      generateWeek(data.current, true);
+      render();
+      showToast("Histórico redefinido.");
+    }
+  });
+
+  // Shuffle Groups
+  document.getElementById("btnShuffleGroups")?.addEventListener("click", async () => {
+    const confirmed = await showConfirmModal("Reordenar Grupos", "Isso redistribuirá aleatoriamente todos os moradores entre os grupos Q1 e Q5. Confirmar?");
+    if (confirmed && data.people.length) {
+      const shuffled = shuffle([...data.people]);
+      shuffled.forEach((p, idx) => {
+        p.group = GROUPS[idx % 5];
+      });
+      data.people = shuffled;
+      save();
+      generateWeek(data.current, true);
+      render();
+      showToast("Grupos redistribuídos com sucesso!");
+    }
+  });
+
+  // PDF Export Buttons
+  document.getElementById("pdfCurrent")?.addEventListener("click", generatePDFCurrent);
+  document.getElementById("pdfAll")?.addEventListener("click", generatePDFAll);
+  document.getElementById("btnPdfGeralHeader")?.addEventListener("click", generatePDFAll);
+
+  // Edit Modal Buttons
+  document.getElementById("editModalCancel")?.addEventListener("click", closeEditModal);
+  document.getElementById("editModalSave")?.addEventListener("click", () => {
+    const input = document.getElementById("editPersonNameInput");
+    const val = input.value.trim();
+    if (val && editingPersonId) {
+      const person = data.people.find(p => p.id === editingPersonId);
+      if (person) {
+        person.name = val;
+        save();
+        render();
+        showToast("Nome alterado com sucesso!");
+      }
+    }
+    closeEditModal();
+  });
+
+  // Initial Boot
+  generateWeek(data.current);
+  render();
+});
+</script>
+</body>
+</html>
